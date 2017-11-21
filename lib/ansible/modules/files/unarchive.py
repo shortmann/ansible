@@ -84,6 +84,10 @@ options:
     type: 'bool'
     default: 'yes'
     version_added: "2.2"
+  headers:
+    description:
+      - Add custom HTTP headers to a request in the format "key:value,key:value".
+    version_added: '2.5'
 author: Michael DeHaan
 todo:
     - Re-implement tar support using native tarfile module.
@@ -778,11 +782,21 @@ def main():
             exclude=dict(type='list', default=[]),
             extra_opts=dict(type='list', default=[]),
             validate_certs=dict(type='bool', default=True),
+            headers=dict(type='str'),
         ),
         add_file_common_args=True,
         # check-mode only works for zip files, we cover that later
         supports_check_mode=True,
     )
+
+    # Parse headers to dict
+    if module.params['headers']:
+        try:
+            headers = dict(item.split(':', 1) for item in module.params['headers'].split(','))
+        except:
+            module.fail_json(msg="The header parameter requires a key:value,key:value syntax to be properly parsed.")
+    else:
+        headers = None
 
     src = module.params['src']
     dest = module.params['dest']
@@ -798,7 +812,7 @@ def main():
             tempdir = os.path.dirname(os.path.realpath(__file__))
             package = os.path.join(tempdir, str(src.rsplit('/', 1)[1]))
             try:
-                rsp, info = fetch_url(module, src)
+                rsp, info = fetch_url(module, src, headers=headers)
                 # If download fails, raise a proper exception
                 if rsp is None:
                     raise Exception(info['msg'])
